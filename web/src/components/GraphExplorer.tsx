@@ -8,7 +8,7 @@ import React, {
   useEffect,
 } from 'react'
 import dynamic from 'next/dynamic'
-import { GitBranch, ExternalLink, Zap } from 'lucide-react'
+import { Search, GitFork } from 'lucide-react'
 import type {
   DependencyGraph,
   ToolPreconditions,
@@ -21,21 +21,17 @@ import ControlPanel from './ControlPanel'
 import DetailPanel from './DetailPanel'
 import CommandPalette from './CommandPalette'
 
-// ─── Dynamic import of Sigma (no SSR) ────────────────────────────────────────
-
 const SigmaGraph = dynamic(() => import('./SigmaGraph'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center w-full h-full bg-[#0d1117]">
+    <div className="flex items-center justify-center w-full h-full bg-[#0c0c0c]">
       <div className="text-center">
-        <div className="spinner mb-4 mx-auto" />
-        <p className="text-sm text-[#8b949e]">Loading graph engine…</p>
+        <div className="spinner mb-3 mx-auto" />
+        <p className="text-xs text-[#5a5a5a]">Loading graph…</p>
       </div>
     </div>
   ),
 })
-
-// ─── Default filter state ─────────────────────────────────────────────────────
 
 const DEFAULT_FILTERS: FilterState = {
   toolkits: new Set(['googlesuper', 'github']),
@@ -45,53 +41,6 @@ const DEFAULT_FILTERS: FilterState = {
   edgeTypes: new Set<EdgeType>(['description', 'targeted', 'heuristic', 'llm']),
   search: '',
 }
-
-// ─── Stat counter animation ───────────────────────────────────────────────────
-
-function AnimatedStat({
-  target,
-  label,
-  delay = 0,
-}: {
-  target: number
-  label: string
-  delay?: number
-}) {
-  const [display, setDisplay] = useState(0)
-  const [started, setStarted] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setStarted(true), delay)
-    return () => clearTimeout(t)
-  }, [delay])
-
-  useEffect(() => {
-    if (!started) return
-    const duration = 800
-    const start = performance.now()
-    const from = 0
-
-    function step(now: number) {
-      const progress = Math.min((now - start) / duration, 1)
-      const ease = 1 - Math.pow(1 - progress, 3) // cubic ease-out
-      setDisplay(Math.round(from + (target - from) * ease))
-      if (progress < 1) requestAnimationFrame(step)
-    }
-
-    requestAnimationFrame(step)
-  }, [started, target])
-
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="text-[#e6edf3] font-semibold tabular-nums">
-        {display.toLocaleString()}
-      </span>{' '}
-      <span className="text-[#6e7681]">{label}</span>
-    </span>
-  )
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 
 interface GraphExplorerProps {
   graph: DependencyGraph
@@ -104,64 +53,56 @@ export default function GraphExplorer({ graph, preconditions }: GraphExplorerPro
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
-  // Refs for cross-component imperative calls
   const flyToRef = useRef<((slug: string) => void) | null>(null)
   const runLayoutRef = useRef<(() => void) | null>(null)
   const resetViewRef = useRef<(() => void) | null>(null)
 
-  // Build preconditions lookup map
   const preconditionsMap = useMemo(() => {
     const map = new Map<string, ToolPreconditions>()
-    for (const p of preconditions) {
-      map.set(p.tool, p)
-    }
+    for (const p of preconditions) map.set(p.tool, p)
     return map
   }, [preconditions])
 
-  // Connected nodes (stable reference)
   const connectedSlugs = useMemo(
     () => computeConnectedNodes(graph.edges),
     [graph.edges]
   )
 
-  // Graph stats
   const stats: GraphStats = useMemo(
     () => computeStats(graph, connectedSlugs),
     [graph, connectedSlugs]
   )
 
-  // ─── Handlers ──────────────────────────────────────────────────────────────
+  // ⌘K shortcut
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setPaletteOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const handleNodeClick = useCallback((slug: string | null) => {
     setSelectedNode(slug)
-    if (slug === null) {
-      setTracedNodes(null)
-    }
+    if (slug === null) setTracedNodes(null)
   }, [])
 
   const handleTrace = useCallback(
     (slug: string) => {
-      if (!slug) {
-        setTracedNodes(null)
-        return
-      }
-      const ancestors = getAncestors(slug, graph.edges, 4)
-      setTracedNodes(ancestors)
+      if (!slug) { setTracedNodes(null); return }
+      setTracedNodes(getAncestors(slug, graph.edges, 4))
     },
     [graph.edges]
   )
 
-  const handleCommandSelect = useCallback(
-    (slug: string) => {
-      setSelectedNode(slug)
-      setTracedNodes(null)
-      // Fly camera to node
-      if (flyToRef.current) {
-        flyToRef.current(slug)
-      }
-    },
-    []
-  )
+  const handleCommandSelect = useCallback((slug: string) => {
+    setSelectedNode(slug)
+    setTracedNodes(null)
+    flyToRef.current?.(slug)
+  }, [])
 
   const handleRunLayout = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -181,69 +122,44 @@ export default function GraphExplorer({ graph, preconditions }: GraphExplorerPro
   const handleSelectNode = useCallback((slug: string) => {
     setSelectedNode(slug)
     setTracedNodes(null)
-    if (flyToRef.current) flyToRef.current(slug)
+    flyToRef.current?.(slug)
   }, [])
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0d1117]">
-      {/* ─── Header band ────────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 flex items-center justify-between px-5 py-3 bg-[#161b22] border-b border-[#30363d] z-20">
-        {/* Logo + wordmark */}
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#8B5CF6] to-[#4285F4] flex items-center justify-center">
-              <GitBranch className="w-4 h-4 text-white" />
-            </div>
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#3fb950] rounded-full border border-[#161b22]" />
-          </div>
-          <div>
-            <span className="text-[#e6edf3] font-bold text-lg tracking-tight leading-none">
-              Plexus
-            </span>
-            <span className="ml-2 text-xs text-[#6e7681] hidden sm:inline">
-              AI Tool Dependency Graph
-            </span>
-          </div>
-        </div>
-
-        {/* Animated stats */}
-        <div className="hidden md:flex items-center gap-3 text-sm">
-          <AnimatedStat target={graph.metadata.totalTools} label="tools" delay={100} />
-          <span className="text-[#30363d]">·</span>
-          <AnimatedStat target={graph.metadata.totalEdges} label="edges" delay={300} />
-          <span className="text-[#30363d]">·</span>
-          <span className="text-[#6e7681]">
-            <span className="text-[#e6edf3] font-semibold">2</span> toolkits
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0c0c0c]">
+      {/* Header */}
+      <header className="flex-shrink-0 flex items-center justify-between px-4 h-11 bg-[#141414] border-b border-[#282828] z-20">
+        <div className="flex items-center gap-2.5">
+          <GitFork className="w-4 h-4 text-[#3b82f6]" />
+          <span className="text-sm font-semibold text-[#ebebeb] tracking-tight">Plexus</span>
+          <span className="text-[#282828]">·</span>
+          <span className="text-xs text-[#5a5a5a]">
+            {graph.metadata.totalTools.toLocaleString()} tools · {graph.metadata.totalEdges} edges
           </span>
         </div>
 
-        {/* Right actions */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setPaletteOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] rounded-md text-xs text-[#8b949e] hover:text-[#e6edf3] transition-all"
+            className="flex items-center gap-2 px-2.5 py-1.5 bg-[#1e1e1e] hover:bg-[#252525] border border-[#2e2e2e] rounded-md text-xs text-[#9b9b9b] hover:text-[#ebebeb] transition-colors"
           >
-            <Zap className="w-3 h-3" />
+            <Search className="w-3 h-3" />
             <span>Search</span>
-            <kbd className="px-1 bg-[#161b22] border border-[#30363d] rounded text-[10px] font-mono">
-              ⌘K
-            </kbd>
+            <kbd className="px-1 bg-[#141414] border border-[#333] rounded text-[10px] font-mono text-[#5a5a5a]">⌘K</kbd>
           </button>
           <a
             href="https://github.com/sammytourani/plexus"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] rounded-md text-xs text-[#8b949e] hover:text-[#e6edf3] transition-all"
+            className="px-2.5 py-1.5 bg-[#1e1e1e] hover:bg-[#252525] border border-[#2e2e2e] rounded-md text-xs text-[#9b9b9b] hover:text-[#ebebeb] transition-colors"
           >
-            <ExternalLink className="w-3 h-3" />
-            <span className="hidden sm:inline">GitHub</span>
+            GitHub
           </a>
         </div>
       </header>
 
-      {/* ─── Main 3-column layout ────────────────────────────────────────────── */}
+      {/* Body */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left sidebar */}
         <ControlPanel
           filters={filters}
           onFiltersChange={setFilters}
@@ -254,7 +170,6 @@ export default function GraphExplorer({ graph, preconditions }: GraphExplorerPro
           resetViewRef={resetViewRef}
         />
 
-        {/* Graph canvas */}
         <main className="flex-1 relative overflow-hidden">
           <SigmaGraph
             graph={graph}
@@ -265,33 +180,32 @@ export default function GraphExplorer({ graph, preconditions }: GraphExplorerPro
             flyToRef={flyToRef}
           />
 
-          {/* Node count overlay (bottom left of canvas) */}
-          <div className="absolute bottom-4 left-4 flex items-center gap-2 pointer-events-none">
-            <div className="px-3 py-1.5 bg-[#161b22]/80 backdrop-blur-sm border border-[#30363d] rounded-full text-xs text-[#6e7681]">
+          {/* Bottom-left status */}
+          <div className="absolute bottom-3 left-3 pointer-events-none">
+            <span className="text-[11px] text-[#444] bg-[#141414]/80 px-2 py-1 rounded">
               {stats.connectedNodes} connected · {stats.orphanNodes} orphan
-            </div>
+            </span>
           </div>
 
-          {/* Selected node mini label */}
+          {/* Selected node chip */}
           {selectedNode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
-              <div className="px-3 py-1.5 bg-[#8B5CF6]/20 backdrop-blur-sm border border-[#8B5CF6]/40 rounded-full text-xs text-[#a78bfa] font-medium animate-fade-in">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none">
+              <span className="text-[11px] text-[#60a5fa] bg-[#141414]/90 border border-[#1d3557] px-2.5 py-1 rounded-full font-mono animate-fade-in">
                 {selectedNode}
-              </div>
+              </span>
             </div>
           )}
 
-          {/* Trace mode banner */}
+          {/* Trace mode badge */}
           {tracedNodes && (
-            <div className="absolute top-4 right-4 pointer-events-none">
-              <div className="px-3 py-1.5 bg-[#8B5CF6]/15 backdrop-blur-sm border border-[#8B5CF6]/30 rounded-lg text-xs text-[#a78bfa] animate-fade-in">
-                Tracing {tracedNodes.size} tools in producer chain
-              </div>
+            <div className="absolute top-3 right-3 pointer-events-none">
+              <span className="text-[11px] text-[#3b82f6] bg-[#141414]/90 border border-[#1e3a5f] px-2.5 py-1 rounded-full animate-fade-in">
+                Tracing {tracedNodes.size} tools
+              </span>
             </div>
           )}
         </main>
 
-        {/* Right detail panel */}
         {selectedNode && (
           <DetailPanel
             slug={selectedNode}
@@ -305,7 +219,6 @@ export default function GraphExplorer({ graph, preconditions }: GraphExplorerPro
         )}
       </div>
 
-      {/* Command palette */}
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}

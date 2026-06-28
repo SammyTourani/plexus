@@ -124,18 +124,17 @@ export default function SigmaGraph({
       if (isCancelled || !containerRef.current) return
 
       // Create Sigma renderer
+      // Note: do NOT pass nodeProgramClasses/edgeProgramClasses — empty objects
+      // override all built-in renderers and produce a blank canvas.
       const renderer = new Sigma.default(g, containerRef.current, {
         renderEdgeLabels: false,
-        defaultEdgeType: 'arrow',
-        labelColor: { color: '#8b949e' },
-        labelSize: 11,
-        labelFont: 'Inter, system-ui, sans-serif',
-        labelWeight: '400',
+        defaultEdgeType: 'line',
+        labelColor: { color: '#9b9b9b' },
+        labelSize: 10,
+        labelFont: 'ui-sans-serif, system-ui, sans-serif',
         minCameraRatio: 0.02,
         maxCameraRatio: 20,
         allowInvalidContainer: true,
-        nodeProgramClasses: {},
-        edgeProgramClasses: {},
       })
 
       sigmaRef.current = renderer
@@ -241,7 +240,7 @@ export default function SigmaGraph({
         }
         return {
           ...nodeData,
-          color: node === selectedNode ? '#8B5CF6' : brightenHex(nodeData.color),
+          color: node === selectedNode ? '#3b82f6' : brightenHex(nodeData.color),
           size: nodeData.size * 1.3,
         }
       }
@@ -249,7 +248,7 @@ export default function SigmaGraph({
       // Selection highlight
       if (selectedNode !== null) {
         if (node === selectedNode) {
-          return { ...nodeData, color: '#8B5CF6', size: nodeData.size * 1.5 }
+          return { ...nodeData, color: '#3b82f6', size: nodeData.size * 1.5 }
         }
         if (neighbors?.has(node)) {
           return { ...nodeData }
@@ -278,7 +277,7 @@ export default function SigmaGraph({
       // Trace mode: show only path edges
       if (tracedNodes !== null) {
         if (tracedNodes.has(source) && tracedNodes.has(target)) {
-          return { ...edgeData, color: '#8B5CF6', size: 2 }
+          return { ...edgeData, color: '#3b82f6', size: 2 }
         }
         return { ...edgeData, hidden: true }
       }
@@ -326,11 +325,11 @@ export default function SigmaGraph({
   }, [])
 
   return (
-    <div className="relative w-full h-full bg-[#0d1117]">
+    <div className="relative w-full h-full bg-[#0c0c0c]">
       <div
         ref={containerRef}
         className="sigma-container w-full h-full"
-        style={{ background: '#0d1117' }}
+        style={{ background: '#0c0c0c' }}
       />
     </div>
   )
@@ -343,8 +342,8 @@ function dimHex(hex: string, alpha: number): string {
     const r = parseInt(hex.slice(1, 3), 16)
     const g = parseInt(hex.slice(3, 5), 16)
     const b = parseInt(hex.slice(5, 7), 16)
-    // Blend toward #1c2128 (dim bg) with alpha
-    const bg = { r: 28, g: 33, b: 40 }
+    // Blend toward #0c0c0c (canvas bg) with alpha
+    const bg = { r: 12, g: 12, b: 12 }
     const rOut = Math.round(r * alpha + bg.r * (1 - alpha))
     const gOut = Math.round(g * alpha + bg.g * (1 - alpha))
     const bOut = Math.round(b * alpha + bg.b * (1 - alpha))

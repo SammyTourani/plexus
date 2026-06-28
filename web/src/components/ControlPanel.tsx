@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useCallback, useState } from 'react'
-import { RefreshCw, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
-import { clsx } from 'clsx'
+import { RefreshCw, RotateCcw, ChevronDown } from 'lucide-react'
 import type { ControlPanelProps, FilterState, EdgeType } from '@/lib/types'
 import { SERVICE_COLORS, GROUP_LABELS, GROUP_ORDER } from '@/lib/colors'
 
@@ -12,11 +11,17 @@ const TOOLKIT_OPTIONS = [
 ]
 
 const EDGE_TYPE_OPTIONS: { value: EdgeType; label: string; color: string }[] = [
-  { value: 'description', label: 'Description', color: '#60A5FA' },
-  { value: 'targeted', label: 'Targeted', color: '#34D399' },
-  { value: 'heuristic', label: 'Heuristic', color: '#FBBF24' },
-  { value: 'llm', label: 'LLM', color: '#A78BFA' },
+  { value: 'description', label: 'Description', color: '#60a5fa' },
+  { value: 'targeted',    label: 'Targeted',    color: '#4ade80' },
+  { value: 'heuristic',   label: 'Heuristic',   color: '#facc15' },
+  { value: 'llm',         label: 'LLM',         color: '#c084fc' },
 ]
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-medium text-[#5a5a5a] mb-2">{children}</p>
+  )
+}
 
 export default function ControlPanel({
   filters,
@@ -25,23 +30,18 @@ export default function ControlPanel({
   onRunLayout,
   onResetView,
 }: ControlPanelProps) {
-  const [legendExpanded, setLegendExpanded] = useState(true)
+  const [legendOpen, setLegendOpen] = useState(false)
 
   const update = useCallback(
-    (patch: Partial<FilterState>) => {
-      onFiltersChange({ ...filters, ...patch })
-    },
+    (patch: Partial<FilterState>) => onFiltersChange({ ...filters, ...patch }),
     [filters, onFiltersChange]
   )
 
   const toggleToolkit = useCallback(
     (value: string) => {
       const next = new Set(filters.toolkits)
-      if (next.has(value)) {
-        if (next.size > 1) next.delete(value) // keep at least one
-      } else {
-        next.add(value)
-      }
+      if (next.has(value)) { if (next.size > 1) next.delete(value) }
+      else next.add(value)
       update({ toolkits: next })
     },
     [filters.toolkits, update]
@@ -50,11 +50,8 @@ export default function ControlPanel({
   const toggleEdgeType = useCallback(
     (value: EdgeType) => {
       const next = new Set(filters.edgeTypes)
-      if (next.has(value)) {
-        if (next.size > 1) next.delete(value)
-      } else {
-        next.add(value)
-      }
+      if (next.has(value)) { if (next.size > 1) next.delete(value) }
+      else next.add(value)
       update({ edgeTypes: next })
     },
     [filters.edgeTypes, update]
@@ -63,64 +60,41 @@ export default function ControlPanel({
   const topGroups = GROUP_ORDER.filter((g) => (stats.byGroup[g] ?? 0) > 0)
 
   return (
-    <aside className="w-[260px] flex-shrink-0 h-full overflow-y-auto bg-[#161b22] border-r border-[#30363d] flex flex-col select-none">
+    <aside className="w-56 flex-shrink-0 h-full overflow-y-auto bg-[#141414] border-r border-[#222] flex flex-col select-none text-[13px]">
       {/* Search */}
-      <div className="p-4 border-b border-[#21262d]">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search tools..."
-            value={filters.search}
-            onChange={(e) => update({ search: e.target.value })}
-            className="w-full bg-[#0d1117] border border-[#30363d] rounded-md px-3 py-2 text-sm text-[#e6edf3] placeholder-[#6e7681] focus:outline-none focus:border-[#8B5CF6] focus:ring-1 focus:ring-[#8B5CF6] transition-colors"
-          />
-          {filters.search && (
-            <button
-              onClick={() => update({ search: '' })}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#6e7681] hover:text-[#e6edf3] transition-colors text-xs leading-none"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-        <p className="mt-2 text-xs text-[#6e7681]">
-          Press{' '}
-          <kbd className="px-1 py-0.5 bg-[#21262d] border border-[#30363d] rounded text-[#8b949e] font-mono text-[10px]">
-            ⌘K
-          </kbd>{' '}
-          for full search
-        </p>
+      <div className="p-3 border-b border-[#1e1e1e]">
+        <input
+          type="text"
+          placeholder="Filter by name…"
+          value={filters.search}
+          onChange={(e) => update({ search: e.target.value })}
+          className="w-full bg-[#0c0c0c] border border-[#2a2a2a] rounded px-2.5 py-1.5 text-[13px] text-[#ebebeb] placeholder-[#444] focus:outline-none focus:border-[#3b82f6] transition-colors"
+        />
       </div>
 
       {/* Toolkits */}
-      <div className="p-4 border-b border-[#21262d]">
-        <p className="text-xs font-semibold text-[#6e7681] uppercase tracking-wider mb-3">
-          Toolkits
-        </p>
+      <div className="p-3 border-b border-[#1e1e1e]">
+        <SectionLabel>Toolkits</SectionLabel>
         <div className="space-y-2">
           {TOOLKIT_OPTIONS.map((opt) => (
-            <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer group">
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filters.toolkits.has(opt.value)}
                 onChange={() => toggleToolkit(opt.value)}
               />
-              <span className="text-sm text-[#e6edf3] group-hover:text-white transition-colors">
-                {opt.label}
-              </span>
+              <span className="text-[#c4c4c4]">{opt.label}</span>
             </label>
           ))}
         </div>
       </div>
 
-      {/* Toggles */}
-      <div className="p-4 border-b border-[#21262d]">
-        <p className="text-xs font-semibold text-[#6e7681] uppercase tracking-wider mb-3">
-          Display
-        </p>
-        <div className="space-y-3">
+      {/* Display */}
+      <div className="p-3 border-b border-[#1e1e1e]">
+        <SectionLabel>Display</SectionLabel>
+        <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[#e6edf3]">Connected only</span>
+            <span className="text-[#c4c4c4]">Connected only</span>
             <label className="toggle-switch">
               <input
                 type="checkbox"
@@ -131,7 +105,7 @@ export default function ControlPanel({
             </label>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[#e6edf3]">Show deprecated</span>
+            <span className="text-[#c4c4c4]">Show deprecated</span>
             <label className="toggle-switch">
               <input
                 type="checkbox"
@@ -144,150 +118,107 @@ export default function ControlPanel({
         </div>
       </div>
 
-      {/* Confidence slider */}
-      <div className="p-4 border-b border-[#21262d]">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-[#6e7681] uppercase tracking-wider">
-            Min Confidence
-          </p>
-          <span className="text-xs font-mono text-[#8B5CF6] tabular-nums">
+      {/* Confidence */}
+      <div className="p-3 border-b border-[#1e1e1e]">
+        <div className="flex items-center justify-between mb-2">
+          <SectionLabel>Min confidence</SectionLabel>
+          <span className="text-[11px] font-mono text-[#3b82f6]">
             {filters.minConfidence.toFixed(2)}
           </span>
         </div>
         <input
           type="range"
-          min={0}
-          max={1}
-          step={0.05}
+          min={0} max={1} step={0.05}
           value={filters.minConfidence}
           onChange={(e) => update({ minConfidence: parseFloat(e.target.value) })}
           className="w-full"
         />
         <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-[#6e7681]">0.0</span>
-          <span className="text-[10px] text-[#6e7681]">1.0</span>
+          <span className="text-[10px] text-[#444]">0.0</span>
+          <span className="text-[10px] text-[#444]">1.0</span>
         </div>
       </div>
 
       {/* Edge types */}
-      <div className="p-4 border-b border-[#21262d]">
-        <p className="text-xs font-semibold text-[#6e7681] uppercase tracking-wider mb-3">
-          Edge Types
-        </p>
+      <div className="p-3 border-b border-[#1e1e1e]">
+        <SectionLabel>Edge types</SectionLabel>
         <div className="space-y-2">
           {EDGE_TYPE_OPTIONS.map((opt) => (
-            <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer group">
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={filters.edgeTypes.has(opt.value)}
                 onChange={() => toggleEdgeType(opt.value)}
               />
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: opt.color }}
-              />
-              <span className="text-sm text-[#e6edf3] group-hover:text-white transition-colors">
-                {opt.label}
-              </span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.color }} />
+              <span className="text-[#c4c4c4]">{opt.label}</span>
             </label>
           ))}
         </div>
       </div>
 
       {/* Stats */}
-      <div className="p-4 border-b border-[#21262d]">
-        <p className="text-xs font-semibold text-[#6e7681] uppercase tracking-wider mb-3">
-          Stats
-        </p>
-        <div className="space-y-1.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-[#8b949e]">Total tools</span>
-            <span className="text-[#e6edf3] font-medium tabular-nums">
-              {stats.totalNodes.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[#8b949e]">Edges</span>
-            <span className="text-[#e6edf3] font-medium tabular-nums">
-              {stats.totalEdges.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[#8b949e]">Connected</span>
-            <span className="text-[#3fb950] font-medium tabular-nums">
-              {stats.connectedNodes.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[#8b949e]">Orphans</span>
-            <span className="text-[#6e7681] font-medium tabular-nums">
-              {stats.orphanNodes.toLocaleString()}
-            </span>
-          </div>
+      <div className="p-3 border-b border-[#1e1e1e]">
+        <SectionLabel>Stats</SectionLabel>
+        <div className="space-y-1.5">
+          {[
+            { label: 'Tools',     value: stats.totalNodes.toLocaleString(), color: '#c4c4c4' },
+            { label: 'Edges',     value: stats.totalEdges.toLocaleString(), color: '#c4c4c4' },
+            { label: 'Connected', value: stats.connectedNodes.toLocaleString(), color: '#4ade80' },
+            { label: 'Orphans',   value: stats.orphanNodes.toLocaleString(), color: '#444' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex justify-between">
+              <span className="text-[#5a5a5a]">{label}</span>
+              <span className="tabular-nums font-medium" style={{ color }}>{value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="p-4 border-b border-[#21262d]">
+      {/* Service groups legend */}
+      <div className="p-3 border-b border-[#1e1e1e]">
         <button
-          onClick={() => setLegendExpanded((v) => !v)}
-          className="flex items-center justify-between w-full text-xs font-semibold text-[#6e7681] uppercase tracking-wider mb-0 hover:text-[#8b949e] transition-colors"
+          onClick={() => setLegendOpen((v) => !v)}
+          className="flex items-center justify-between w-full text-left"
         >
-          <span>Service Groups</span>
-          {legendExpanded ? (
-            <ChevronUp className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )}
+          <SectionLabel>Services</SectionLabel>
+          <ChevronDown
+            className="w-3 h-3 text-[#444] transition-transform"
+            style={{ transform: legendOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
         </button>
 
-        {legendExpanded && (
-          <div className="mt-3 space-y-1.5">
-            {topGroups.map((group) => {
-              const color = SERVICE_COLORS[group] ?? SERVICE_COLORS.default
-              const label = GROUP_LABELS[group] ?? group
-              const count = stats.byGroup[group] ?? 0
-
-              return (
-                <div key={group} className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-sm text-[#8b949e] flex-1">{label}</span>
-                  <span className="text-xs text-[#6e7681] tabular-nums">{count}</span>
-                </div>
-              )
-            })}
+        {legendOpen && (
+          <div className="mt-2 space-y-1.5">
+            {topGroups.map((group) => (
+              <div key={group} className="flex items-center gap-2">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: SERVICE_COLORS[group] ?? SERVICE_COLORS.default }}
+                />
+                <span className="text-[#9b9b9b] flex-1">{GROUP_LABELS[group] ?? group}</span>
+                <span className="text-[11px] text-[#444] tabular-nums">{stats.byGroup[group] ?? 0}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       {/* Layout controls */}
-      <div className="p-4 mt-auto space-y-2">
+      <div className="p-3 mt-auto space-y-2">
         <button
           onClick={onRunLayout}
-          className={clsx(
-            'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md',
-            'text-sm font-medium border transition-all duration-150',
-            'border-[#8B5CF6] text-[#8B5CF6]',
-            'hover:bg-[#8B5CF6] hover:text-white active:scale-95'
-          )}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-[#2e2e2e] text-[12px] text-[#9b9b9b] hover:text-[#ebebeb] hover:border-[#3a3a3a] transition-colors"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Run FA2 Layout
+          <RefreshCw className="w-3 h-3" />
+          Force layout
         </button>
         <button
           onClick={onResetView}
-          className={clsx(
-            'w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md',
-            'text-sm font-medium border transition-all duration-150',
-            'border-[#30363d] text-[#8b949e]',
-            'hover:border-[#484f58] hover:text-[#e6edf3] active:scale-95'
-          )}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded border border-[#2e2e2e] text-[12px] text-[#9b9b9b] hover:text-[#ebebeb] hover:border-[#3a3a3a] transition-colors"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
-          Reset View
+          <RotateCcw className="w-3 h-3" />
+          Reset view
         </button>
       </div>
     </aside>

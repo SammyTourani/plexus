@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Command } from 'cmdk'
 import { Search, X } from 'lucide-react'
-import { clsx } from 'clsx'
 import type { CommandPaletteProps } from '@/lib/types'
 import { SERVICE_COLORS, GROUP_LABELS, inferGroup } from '@/lib/colors'
 
@@ -15,65 +14,45 @@ export default function CommandPalette({
 }: CommandPaletteProps) {
   const [search, setSearch] = useState('')
 
-  // Reset search on close
   useEffect(() => {
-    if (!open) {
-      setTimeout(() => setSearch(''), 200)
-    }
+    if (!open) setTimeout(() => setSearch(''), 200)
   }, [open])
 
-  // Global keyboard shortcut
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        onOpenChange(!open)
-      }
-      if (e.key === 'Escape' && open) {
-        onOpenChange(false)
-      }
+    function handler(e: KeyboardEvent) {
+      if (e.key === 'Escape' && open) onOpenChange(false)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [open, onOpenChange])
 
   const handleSelect = useCallback(
-    (slug: string) => {
-      onSelect(slug)
-      onOpenChange(false)
-    },
+    (slug: string) => { onSelect(slug); onOpenChange(false) },
     [onSelect, onOpenChange]
   )
 
-  // Build search index
   const searchItems = useMemo(
-    () =>
-      graph.nodes.map((node) => ({
-        slug: node.slug,
-        name: node.name,
-        toolkit: node.toolkit,
-        group: inferGroup(node.slug),
-        isDeprecated: node.isDeprecated,
-        searchText: `${node.slug} ${node.name}`.toLowerCase(),
-      })),
+    () => graph.nodes.map((node) => ({
+      slug: node.slug,
+      name: node.name,
+      toolkit: node.toolkit,
+      group: inferGroup(node.slug),
+      isDeprecated: node.isDeprecated,
+      searchText: `${node.slug} ${node.name}`.toLowerCase(),
+    })),
     [graph.nodes]
   )
 
-  // Filter results
   const results = useMemo(() => {
     if (!search.trim()) return searchItems.slice(0, 60)
     const q = search.toLowerCase().trim()
     return searchItems
       .filter((item) => item.searchText.includes(q))
       .sort((a, b) => {
-        // Exact slug match first
-        const aSlug = a.slug.toLowerCase() === q
-        const bSlug = b.slug.toLowerCase() === q
-        if (aSlug && !bSlug) return -1
-        if (bSlug && !aSlug) return 1
-        // Slug starts-with
-        const aStarts = a.slug.toLowerCase().startsWith(q)
-        const bStarts = b.slug.toLowerCase().startsWith(q)
+        const aExact = a.slug.toLowerCase() === q, bExact = b.slug.toLowerCase() === q
+        if (aExact && !bExact) return -1
+        if (bExact && !aExact) return 1
+        const aStarts = a.slug.toLowerCase().startsWith(q), bStarts = b.slug.toLowerCase().startsWith(q)
         if (aStarts && !bStarts) return -1
         if (bStarts && !aStarts) return 1
         return a.slug.localeCompare(b.slug)
@@ -85,60 +64,47 @@ export default function CommandPalette({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[14vh]"
       onClick={() => onOpenChange(false)}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-[#010409]/80 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
-      {/* Panel */}
       <div
-        className="relative w-full max-w-[580px] mx-4 bg-[#161b22] border border-[#30363d] rounded-xl shadow-panel overflow-hidden animate-slide-up"
+        className="relative w-full max-w-[540px] mx-4 bg-[#141414] border border-[#2a2a2a] rounded-lg shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <Command label="Tool search" shouldFilter={false}>
-          {/* Search input */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#21262d]">
-            <Search className="w-4 h-4 text-[#6e7681] flex-shrink-0" />
+          {/* Input */}
+          <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-[#1e1e1e]">
+            <Search className="w-4 h-4 text-[#444] flex-shrink-0" />
             <Command.Input
               value={search}
               onValueChange={setSearch}
-              placeholder="Search 1,296 tools by name or slug…"
-              className="flex-1 bg-transparent text-[#e6edf3] placeholder-[#6e7681] text-sm outline-none"
+              placeholder="Search 1,296 tools…"
+              className="flex-1 bg-transparent text-[#ebebeb] placeholder-[#444] text-sm outline-none"
               autoFocus
             />
             {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="flex-shrink-0 text-[#6e7681] hover:text-[#e6edf3] transition-colors"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => setSearch('')} className="text-[#444] hover:text-[#9b9b9b] transition-colors">
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
-            <kbd className="hidden sm:block flex-shrink-0 px-1.5 py-0.5 text-[10px] text-[#6e7681] bg-[#21262d] border border-[#30363d] rounded font-mono">
-              ESC
-            </kbd>
+            <kbd className="text-[10px] text-[#3a3a3a] bg-[#1e1e1e] border border-[#2a2a2a] px-1.5 py-0.5 rounded font-mono">ESC</kbd>
           </div>
 
           {/* Results */}
-          <Command.List className="max-h-[420px] overflow-y-auto py-2">
+          <Command.List className="max-h-[400px] overflow-y-auto py-1">
             {results.length === 0 ? (
-              <Command.Empty className="py-12 text-center text-[#6e7681] text-sm">
+              <Command.Empty className="py-10 text-center text-[#444] text-sm">
                 No tools matching &ldquo;{search}&rdquo;
               </Command.Empty>
             ) : (
               <>
-                {search && (
-                  <div className="px-4 py-1.5 text-[10px] text-[#6e7681] uppercase tracking-wider font-semibold">
-                    {results.length} result{results.length !== 1 ? 's' : ''}
-                    {results.length === 80 ? ' (showing top 80)' : ''}
-                  </div>
-                )}
-                {!search && (
-                  <div className="px-4 py-1.5 text-[10px] text-[#6e7681] uppercase tracking-wider font-semibold">
-                    All tools
-                  </div>
-                )}
+                <div className="px-3.5 py-1.5 text-[10px] text-[#3a3a3a]">
+                  {search
+                    ? `${results.length} result${results.length !== 1 ? 's' : ''}${results.length === 80 ? ' (top 80)' : ''}`
+                    : `${searchItems.length} tools`}
+                </div>
                 {results.map((item) => {
                   const color = SERVICE_COLORS[item.group] ?? SERVICE_COLORS.default
                   const groupLabel = GROUP_LABELS[item.group] ?? item.group
@@ -148,52 +114,19 @@ export default function CommandPalette({
                       key={item.slug}
                       value={item.slug}
                       onSelect={() => handleSelect(item.slug)}
-                      className={clsx(
-                        'flex items-center gap-3 px-4 py-2.5 cursor-pointer select-none',
-                        'transition-colors duration-75',
-                        'aria-selected:bg-[#1c2128]',
-                        'hover:bg-[#1c2128]',
-                        item.isDeprecated && 'opacity-50'
-                      )}
+                      className={`flex items-center gap-2.5 px-3.5 py-2 cursor-pointer transition-colors duration-75 aria-selected:bg-[#1a1a1a] hover:bg-[#1a1a1a] ${item.isDeprecated ? 'opacity-40' : ''}`}
                     >
-                      {/* Group color dot */}
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0 mt-0.5"
-                        style={{ backgroundColor: color }}
-                      />
-
-                      {/* Tool info */}
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-[#e6edf3] truncate">{item.name}</div>
-                        <code className="text-[10px] text-[#6e7681] font-mono">{item.slug}</code>
+                        <div className="text-[13px] text-[#ebebeb] truncate">{item.name}</div>
+                        <code className="text-[10px] text-[#5a5a5a] font-mono">{item.slug}</code>
                       </div>
-
-                      {/* Badges */}
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                          style={{
-                            backgroundColor: color + '1a',
-                            color,
-                          }}
-                        >
-                          {groupLabel}
-                        </span>
-                        {item.toolkit === 'github' ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[rgba(139,92,246,0.12)] text-[#8B5CF6]">
-                            GH
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[rgba(66,133,244,0.12)] text-[#4285F4]">
-                            GWS
-                          </span>
-                        )}
-                        {item.isDeprecated && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[rgba(248,81,73,0.12)] text-[#f85149]">
-                            Deprecated
-                          </span>
-                        )}
-                      </div>
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={{ background: color + '18', color }}
+                      >
+                        {groupLabel}
+                      </span>
                     </Command.Item>
                   )
                 })}
@@ -202,19 +135,13 @@ export default function CommandPalette({
           </Command.List>
 
           {/* Footer */}
-          <div className="px-4 py-2.5 border-t border-[#21262d] flex items-center gap-4 text-[10px] text-[#6e7681]">
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-[#21262d] border border-[#30363d] rounded font-mono">↑↓</kbd>
-              Navigate
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-[#21262d] border border-[#30363d] rounded font-mono">↵</kbd>
-              Select & fly to
-            </span>
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-[#21262d] border border-[#30363d] rounded font-mono">ESC</kbd>
-              Close
-            </span>
+          <div className="px-3.5 py-2 border-t border-[#1e1e1e] flex items-center gap-3 text-[10px] text-[#3a3a3a]">
+            {[['↑↓', 'Navigate'], ['↵', 'Select'], ['ESC', 'Close']].map(([key, label]) => (
+              <span key={key} className="flex items-center gap-1">
+                <kbd className="px-1 bg-[#1e1e1e] border border-[#2a2a2a] rounded font-mono">{key}</kbd>
+                {label}
+              </span>
+            ))}
           </div>
         </Command>
       </div>
