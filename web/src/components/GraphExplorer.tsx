@@ -105,8 +105,7 @@ export default function GraphExplorer({ graph, preconditions }: GraphExplorerPro
   }, [])
 
   const handleRunLayout = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(window as any).__plexusRunLayout?.()
+    // FA2 layout not wired — placeholder
   }, [])
 
   const handleResetView = useCallback(() => {
